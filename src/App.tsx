@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './App.css';
 import Grid from './Grid';
+import produce from 'immer';
 
 enum Team {
   red,
@@ -23,11 +24,13 @@ const App: React.FC = () => {
   const [isRedTurn, setIsRedTurn] = useState(getRandomBoolean());
 
   const onSuccessfulMatch = () => {
-    if (isRedTurn) {
-      setGameScore(prevGameScore => ({ ...prevGameScore, red: prevGameScore.red + 10 }));
-    } else {
-      setGameScore(prevGameScore => ({ ...prevGameScore, blue: prevGameScore.blue + 10 }));
-    }
+    setGameScore(prevGameScore => produce(prevGameScore, gameScoreState => {
+      if (isRedTurn) {
+        gameScoreState.red += 10;
+      } else {
+        gameScoreState.blue += 10
+      }
+    }));
   };
 
   const onFailedMatch = () => {
