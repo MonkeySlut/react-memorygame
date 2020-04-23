@@ -3,6 +3,8 @@ import produce from 'immer';
 import './Grid.css';
 import Item from './Item';
 
+const flippedItemsAppearanceInMs = 1500;
+
 // could have used uuid / lodash _.sample - I wanted to be able to not hide implementation
 function* imageIdMaker(totalItems: number) {
     const idPool = Array(totalItems / 2).fill(null).map((_, i) => i);
@@ -15,7 +17,9 @@ function* imageIdMaker(totalItems: number) {
 }
 
 type itemProps = React.ComponentProps<typeof Item>;
-type gridState = Omit<itemProps, 'onClick'>;
+type gridState = Omit<itemProps, 'onClick'> & {
+    isMatched: boolean;
+};
 type itemPos = [number, number];
 
 interface Props {
@@ -29,16 +33,21 @@ interface Props {
 const Grid: React.FC<Props> = ({ row = 6, col = 5, onSuccessfulMatch, onFailedMatch, onAllMatched }) => {
     const totalItems = row * col;
     const imageIdGenerator = imageIdMaker(totalItems);
-    const [matchedCount, setMatchedCount] = useState(0);
+    const [timeoutDOM, setTimeoutDOM] = useState<number>(); 
     const [grid, setGrid] = useState<gridState[][]>(Array(row).fill(null).map(
         () => Array(col).fill(null).map(
-            () => ({ isFlipped: false, imageId: imageIdGenerator.next().value, canFlip: true })
+            () => ({ isFlipped: false, imageId: imageIdGenerator.next().value, canFlip: true, isMatched: false })
         )
     ));
-
+    const [isGridFlipsEnabled, setIsGridFlipsEnabled] = useState(true);
     const [firstItemPos, setfirstItemPos] = useState<itemPos>();
     const [secondItemPos, setSecondItemPos] = useState<itemPos>();
 
+    const setIsMatched = ([i, j]: itemPos, value: boolean) => {
+        setGrid(prevGrid => produce(prevGrid, gridState => {
+            gridState[i][j].isMatched = value;
+        }));
+    };
     const setCanFlip = ([i, j]: itemPos, value: boolean) => {
         setGrid(prevGrid => produce(prevGrid, gridState => {
             gridState[i][j].canFlip = value;
@@ -53,7 +62,7 @@ const Grid: React.FC<Props> = ({ row = 6, col = 5, onSuccessfulMatch, onFailedMa
 
     const itemOnClick = (itemPos: itemPos) => () => {
         const [i, j] = itemPos;
-        if (!grid[i][j].canFlip)
+        if (!isGridFlipsEnabled  || !grid[i][j].canFlip || (firstItemPos && secondItemPos))
             return;
 
         if (firstItemPos) {
@@ -71,26 +80,26 @@ const Grid: React.FC<Props> = ({ row = 6, col = 5, onSuccessfulMatch, onFailedMa
         setCanFlip(secondItemPos!, false);
         setIsFlipped(firstItemPos!, true);
         setIsFlipped(secondItemPos!, true);
+        setIsMatched(firstItemPos!, true);
+        setIsMatched(secondItemPos!, true);
         setfirstItemPos(undefined);
         setSecondItemPos(undefined);
-        setMatchedCount(prevMatchedCount => prevMatchedCount + 2);
         onSuccessfulMatch();
     }, [firstItemPos, secondItemPos, onSuccessfulMatch]);
 
     const failedFindingMatchingItems = useCallback(() => {
-        setCanFlip(firstItemPos!, false);
-        setCanFlip(secondItemPos!, false);
-
-        setTimeout(() => {
+        setIsGridFlipsEnabled(false);
+        let timeoutDOM: any = setTimeout(() => {
             setCanFlip(firstItemPos!, true);
             setCanFlip(secondItemPos!, true);
             setIsFlipped(firstItemPos!, false);
             setIsFlipped(secondItemPos!, false);
-        }, 1500);
-
-        setfirstItemPos(undefined);
-        setSecondItemPos(undefined);
-        onFailedMatch();
+            setfirstItemPos(undefined);
+            setSecondItemPos(undefined);
+            setIsGridFlipsEnabled(true);
+            onFailedMatch();
+        }, flippedItemsAppearanceInMs);
+        setTimeoutDOM(timeoutDOM);
     }, [firstItemPos, secondItemPos, onFailedMatch]);
 
     const checkItemsImageIdEqual = useCallback(([i, j]: itemPos, [i2, j2]: itemPos) => {
@@ -108,14 +117,19 @@ const Grid: React.FC<Props> = ({ row = 6, col = 5, onSuccessfulMatch, onFailedMa
     }, [firstItemPos, secondItemPos, checkItemsImageIdEqual, foundMatchingItems, failedFindingMatchingItems]);
 
     useEffect(() => {
-        if (matchedCount === totalItems) {
+        if (grid.flat().filter(item => item.isMatched).length === totalItems) {
           onAllMatched();
         }
-      }, [totalItems, matchedCount, onAllMatched])
+      }, [totalItems, onAllMatched, grid]);
+
+
+    useEffect(() => {
+        return () => clearTimeout(timeoutDOM);
+    });
 
     return (
         <div className="grid">
-            {grid.flatMap((list, row) => list.map((item, col) => <Item key={`${row}-${col}`} {...item} onClick={itemOnClick([row, col])} />))}
+            {grid.flatMap((list, row) => list.map((item, col) => <Item key={`${row}-${col}`} {...item} canFlip={isGridFlipsEnabled ? item.canFlip : false} onClick={itemOnClick([row, col])} />))}
         </div>
     );
 }
