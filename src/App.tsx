@@ -24,9 +24,9 @@ const App: React.FC = () => {
 
   const onSuccessfulMatch = () => {
     if (isRedTurn) {
-      setGameScore(prevGameScore => ({ ...prevGameScore, red: prevGameScore.red + 10}));
+      setGameScore(prevGameScore => ({ ...prevGameScore, red: prevGameScore.red + 10 }));
     } else {
-      setGameScore(prevGameScore => ({ ...prevGameScore, blue: prevGameScore.blue + 10}));
+      setGameScore(prevGameScore => ({ ...prevGameScore, blue: prevGameScore.blue + 10 }));
     }
   };
 
@@ -60,7 +60,11 @@ const App: React.FC = () => {
           {`Score - Red: ${gameScore.red}, Blue: ${gameScore.blue}`}
         </div>
       </div>
-    { winner ? <button className="playAgain" onClick={onPlayAgain}>Play Again</button> : <Grid onSuccessfulMatch={onSuccessfulMatch} onFailedMatch={onFailedMatch} onAllMatched={onAllMatched} /> }
+      {
+        winner ? 
+        <button className="playAgain" onClick={onPlayAgain}>Play Again</button> :
+        <Grid onSuccessfulMatch={onSuccessfulMatch} onFailedMatch={onFailedMatch} onAllMatched={onAllMatched} />
+      }
     </div>
   );
 }
