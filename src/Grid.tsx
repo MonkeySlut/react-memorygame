@@ -123,9 +123,10 @@ const Grid: React.FC<Props> = ({ row = 6, col = 5, onSuccessfulMatch, onFailedMa
       }, [totalItems, onAllMatched, grid]);
 
 
+    // unmount cleanup, this should only run once - hence the empty array
     useEffect(() => {
         return () => clearTimeout(timeoutDOM);
-    });
+    }, []);
 
     return (
         <div className="grid">
